@@ -1,3 +1,12 @@
+/**
+* TODO:
+* have the server listen to the /status endpoint
+* respond to GET requests with a JSON body containing the system time and an HTTP status of 200.
+* All requests to other endpoints should result in an HTTP status of 404
+* all requests using anything other than the GET method should return an HTTP status of 405
+* a record of all requests should be sent to Loggly including the method type, source IP address, request path, and the resulting HTTP status code
+*
+ */
 package main
 
 import (
