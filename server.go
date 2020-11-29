@@ -11,11 +11,14 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"time"
 
 	"github.com/gorilla/mux"
+	loggly "github.com/jamespearly/loggly"
 )
 
 type status struct {
@@ -40,6 +43,12 @@ func main() {
 }
 
 func BadMethod(w http.ResponseWriter, r *http.Request) {
+	var tag string
+	tag = "BadMethod"
+
+	ip, _, _ := net.SplitHostPort(r.RemoteAddr)
+
+	client := loggly.New(tag)
 	Status := status{
 
 		HTTP: http.StatusMethodNotAllowed,
@@ -48,10 +57,21 @@ func BadMethod(w http.ResponseWriter, r *http.Request) {
 
 	msg, _ := json.Marshal(Status)
 
+	err := client.Send("info", "Method:"+r.Method+
+		",IP:"+ip+",Path:"+r.RequestURI+string(msg))
+
+	fmt.Println("err:", err)
+
 	w.Write(msg)
 }
 
 func Fail(w http.ResponseWriter, r *http.Request) {
+	var tag string
+	tag = "BadPath"
+
+	ip, _, _ := net.SplitHostPort(r.RemoteAddr)
+
+	client := loggly.New(tag)
 	Status := status{
 
 		HTTP: http.StatusNotFound,
@@ -60,12 +80,21 @@ func Fail(w http.ResponseWriter, r *http.Request) {
 
 	msg, _ := json.Marshal(Status)
 
+	err := client.Send("info", "Method:"+r.Method+
+		",IP:"+ip+",Path:"+r.RequestURI+string(msg))
+
+	fmt.Println("err:", err)
+
 	w.Write(msg)
 }
 
 func Index(w http.ResponseWriter, r *http.Request) {
+	var tag string
+	tag = "GoodQuery"
 
-	//ip, _, _ := net.SplitHostPort(r.RemoteAddr)
+	client := loggly.New(tag)
+
+	ip, _, _ := net.SplitHostPort(r.RemoteAddr)
 
 	Status := status{
 
@@ -74,6 +103,11 @@ func Index(w http.ResponseWriter, r *http.Request) {
 	}
 
 	msg, _ := json.Marshal(Status)
+
+	err := client.Send("info", "Method:"+r.Method+
+		",IP:"+ip+",Path:"+r.RequestURI+string(msg))
+
+	fmt.Println("err:", err)
 
 	w.Write(msg)
 }
