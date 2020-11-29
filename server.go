@@ -10,33 +10,70 @@
 package main
 
 import (
-	"fmt"
+	"encoding/json"
+	"log"
 	"net/http"
+	"time"
 
-	loggly "github.com/jamespearly/loggly"
+	"github.com/gorilla/mux"
 )
 
-func hello(w http.ResponseWriter, req *http.Request) {
-	client := loggly.New("hello")
-	fmt.Fprintf(w, "hello\n")
-	client.Send("info", "Hello Request")
-}
-
-func headers(w http.ResponseWriter, req *http.Request) {
-
-	for name, headers := range req.Header {
-		for _, h := range headers {
-			client := loggly.New("header")
-			fmt.Fprintf(w, "%v: %v\n", name, h)
-			client.Send("info", "Headers Request")
-		}
-	}
+type status struct {
+	HTTP int
+	Time time.Time
 }
 
 func main() {
 
-	http.HandleFunc("/hello", hello)
-	http.HandleFunc("/headers", headers)
+	router := mux.NewRouter().StrictSlash(true)
+	router.HandleFunc("/status", Index).
+		Methods("GET").
+		Schemes("http", "https")
+	router.HandleFunc("/*", Fail).
+		Methods("GET").
+		Schemes("http", "https")
+	router.HandleFunc("/*", BadMethod).
+		Methods("HEAD", "POST", "PUT", "PATCH",
+			"DELETE", "CONNECT", "OPTIONS", "TRACE").
+		Schemes("http", "https")
+	log.Fatal(http.ListenAndServe(":8080", router))
+}
 
-	http.ListenAndServe(":8090", nil)
+func BadMethod(w http.ResponseWriter, r *http.Request) {
+	Status := status{
+
+		HTTP: http.StatusMethodNotAllowed,
+		Time: time.Now(),
+	}
+
+	msg, _ := json.Marshal(Status)
+
+	w.Write(msg)
+}
+
+func Fail(w http.ResponseWriter, r *http.Request) {
+	Status := status{
+
+		HTTP: http.StatusNotFound,
+		Time: time.Now(),
+	}
+
+	msg, _ := json.Marshal(Status)
+
+	w.Write(msg)
+}
+
+func Index(w http.ResponseWriter, r *http.Request) {
+
+	//ip, _, _ := net.SplitHostPort(r.RemoteAddr)
+
+	Status := status{
+
+		HTTP: http.StatusOK,
+		Time: time.Now(),
+	}
+
+	msg, _ := json.Marshal(Status)
+
+	w.Write(msg)
 }
