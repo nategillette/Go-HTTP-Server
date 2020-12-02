@@ -29,8 +29,8 @@ COPY --from=build /app/main ./
 
 # Add environment variables
 #ENV LOGGLY_TOKEN = 
-#ENV AWS_ACCESS_KEY = 
-#ENV AWS_SECRET_ACCESS_KEY =
+ENV AWS_ACCESS_KEY = AKIA34XNLPJYFUGRBTUO
+ENV AWS_SECRET_ACCESS_KEY = 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
 
 # Check results
 RUN env && pwd && find .
@@ -39,5 +39,5 @@ RUN env && pwd && find .
 CMD ["./main"]
 
 # Start the Go app build
-EXPOSE 8080
+#EXPOSE 8080
 

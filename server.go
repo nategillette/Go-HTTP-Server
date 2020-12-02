@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
@@ -104,9 +105,9 @@ func Status(w http.ResponseWriter, r *http.Request) {
 	tag = "Status"
 
 	client := loggly.New(tag)
-	sess := session.Must(session.NewSessionWithOptions(session.Options{
-		SharedConfigState: session.SharedConfigEnable,
-	}))
+	sess, err := session.NewSession(&aws.Config{
+		Region: aws.String("us-east-1"),
+	})
 
 	svc := dynamodb.New(sess)
 
@@ -116,21 +117,25 @@ func Status(w http.ResponseWriter, r *http.Request) {
 		TableName: &tableName,
 	}
 
-	resp, _ := svc.DescribeTable(describeTables)
+	resp, err := svc.DescribeTable(describeTables)
+
+	if err != nil {
+		fmt.Println("err:", err)
+	}
 
 	count := int(*resp.Table.ItemCount)
 
-	fmt.Println(count)
+	//fmt.Println(count)
 
 	tbl := *resp.Table.TableName
 
-	fmt.Println(tbl)
+	//fmt.Println(tbl)
 
 	data := `[{"TableName":` + tbl + `, "ItemCount":` + strconv.Itoa(count) + `}]`
 
 	msg := []byte(data)
 
-	err := client.Send("info", "Method:"+r.Method+
+	err = client.Send("info", "Method:"+r.Method+
 		",IP:"+ip+",Path:"+r.RequestURI+string(msg))
 
 	fmt.Println("err:", err)
@@ -146,9 +151,9 @@ func Contents(w http.ResponseWriter, r *http.Request) {
 
 	client := loggly.New(tag)
 
-	sess := session.Must(session.NewSessionWithOptions(session.Options{
-		SharedConfigState: session.SharedConfigEnable,
-	}))
+	sess, err := session.NewSession(&aws.Config{
+		Region: aws.String("us-east-1"),
+	})
 
 	svc := dynamodb.New(sess)
 
@@ -161,14 +166,17 @@ func Contents(w http.ResponseWriter, r *http.Request) {
 	resp, _ := svc.Scan(describeTables)
 
 	message := []Item{}
+
 	dynamodbattribute.UnmarshalListOfMaps(resp.Items, &message)
 
 	msg, _ := json.Marshal(message)
 
-	err := client.Send("info", "Method:"+r.Method+
+	err = client.Send("info", "Method:"+r.Method+
 		",IP:"+ip+",Path:"+r.RequestURI+string(msg))
 
 	fmt.Println("err:", err)
+
+	//fmt.Println(message)
 
 	w.Write(msg)
 }
