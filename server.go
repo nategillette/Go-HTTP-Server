@@ -6,8 +6,12 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"strconv"
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/dynamodb"
+	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/gorilla/mux"
 	loggly "github.com/jamespearly/loggly"
 )
@@ -17,10 +21,21 @@ type status struct {
 	Time time.Time
 }
 
+type Item struct {
+	ID          string `json:"ID"`
+	Title       string
+	Center      string
+	Description string
+	URL         string
+}
+
 func main() {
 
 	router := mux.NewRouter().StrictSlash(true)
-	router.HandleFunc("/status", Index).
+	router.HandleFunc("/ngillet2/all", Contents).
+		Methods("GET").
+		Schemes("http", "https")
+	router.HandleFunc("/ngillet2/status", Status).
 		Methods("GET").
 		Schemes("http", "https")
 	router.HandleFunc("/*", Fail).
@@ -53,6 +68,8 @@ func BadMethod(w http.ResponseWriter, r *http.Request) {
 
 	fmt.Println("err:", err)
 
+	fmt.Println(msg)
+
 	w.Write(msg)
 }
 
@@ -75,25 +92,78 @@ func Fail(w http.ResponseWriter, r *http.Request) {
 		",IP:"+ip+",Path:"+r.RequestURI+string(msg))
 
 	fmt.Println("err:", err)
+	fmt.Println(msg)
 
 	w.Write(msg)
 }
 
-func Index(w http.ResponseWriter, r *http.Request) {
+func Status(w http.ResponseWriter, r *http.Request) {
+
+	ip, _, _ := net.SplitHostPort(r.RemoteAddr)
 	var tag string
-	tag = "GoodQuery"
+	tag = "Status"
+
+	client := loggly.New(tag)
+	sess := session.Must(session.NewSessionWithOptions(session.Options{
+		SharedConfigState: session.SharedConfigEnable,
+	}))
+
+	svc := dynamodb.New(sess)
+
+	var tableName = "ngillet2-NASAPhotos"
+
+	describeTables := &dynamodb.DescribeTableInput{
+		TableName: &tableName,
+	}
+
+	resp, _ := svc.DescribeTable(describeTables)
+
+	count := int(*resp.Table.ItemCount)
+
+	fmt.Println(count)
+
+	tbl := *resp.Table.TableName
+
+	fmt.Println(tbl)
+
+	data := `[{"TableName":` + tbl + `, "ItemCount":` + strconv.Itoa(count) + `}]`
+
+	msg := []byte(data)
+
+	err := client.Send("info", "Method:"+r.Method+
+		",IP:"+ip+",Path:"+r.RequestURI+string(msg))
+
+	fmt.Println("err:", err)
+
+	w.Write(msg)
+
+}
+
+func Contents(w http.ResponseWriter, r *http.Request) {
+	ip, _, _ := net.SplitHostPort(r.RemoteAddr)
+	var tag string
+	tag = "All"
 
 	client := loggly.New(tag)
 
-	ip, _, _ := net.SplitHostPort(r.RemoteAddr)
+	sess := session.Must(session.NewSessionWithOptions(session.Options{
+		SharedConfigState: session.SharedConfigEnable,
+	}))
 
-	Status := status{
+	svc := dynamodb.New(sess)
 
-		HTTP: http.StatusOK,
-		Time: time.Now(),
+	var tableName = "ngillet2-NASAPhotos"
+
+	describeTables := &dynamodb.ScanInput{
+		TableName: &tableName,
 	}
 
-	msg, _ := json.Marshal(Status)
+	resp, _ := svc.Scan(describeTables)
+
+	message := []Item{}
+	dynamodbattribute.UnmarshalListOfMaps(resp.Items, &message)
+
+	msg, _ := json.Marshal(message)
 
 	err := client.Send("info", "Method:"+r.Method+
 		",IP:"+ip+",Path:"+r.RequestURI+string(msg))
