@@ -235,7 +235,7 @@ func Query(w http.ResponseWriter, r *http.Request) {
 	msg, _ := json.Marshal(message)
 
 	err = client.Send("info", "Method:"+r.Method+
-		",IP:"+ip+",Path:" /*+r.RequestURI+string(msg)*/)
+		",IP:"+ip+",Path:"+r.RequestURI+string(msg))
 
 	if err != nil {
 		fmt.Println("err:", err)
